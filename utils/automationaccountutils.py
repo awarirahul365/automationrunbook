@@ -1,8 +1,9 @@
 from azure.mgmt.automation.models import (
     AutomationAccountCreateOrUpdateParameters,
     RunbookCreateOrUpdateParameters,
+    VariableCreateOrUpdateParameters,
 )
-import logging, os
+import logging, os, json
 
 
 class Automationaccountutils:
@@ -45,4 +46,21 @@ class Automationaccountutils:
             return parameters
         except Exception as e:
             logging.info(f"Error fetching parameter for runbooks {e}")
+            return None
+
+    @staticmethod
+    def aaupdate_runbook_variables(
+        variable_name, variable_value, description, is_encrypted
+    ):
+        try:
+            parameters = VariableCreateOrUpdateParameters(
+                name=variable_name,
+                value=variable_value,
+                description=description,
+                is_encrypted=is_encrypted,
+            )
+            logging.info(f"Fetching variable parameters {parameters}")
+            return parameters
+        except Exception as e:
+            logging.warning(f"Error with updating runbook variables utils {e}")
             return None

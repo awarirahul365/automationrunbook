@@ -167,6 +167,20 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
         # Create or update automation account
         for acc in rg_with_afs_storage:
             await Automationaccount.create_automation_account(rg_afslist=acc)
+
+        # Onboard variables to the automation accounts
+        variables_names_list = [
+            "EXCLUDE_AFS",
+            "OBJECT_STORAGE",
+            "RESOURCE_GROUP",
+            "RetentionDays",
+            "SUBSCRIPTION_ID",
+        ]
+        for acc in rg_with_afs_storage:
+            await Automationaccount.update_variables_to_automation_account(
+                rg_aa_account_list=acc,
+                variables_names_list=variables_names_list,
+            )
         # Add Runbook to automation account created
         runbook_publish_names = [
             {
@@ -186,31 +200,13 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
         ]
         # fetch content link for runbook
         runbook_with_contentlink = await fetch_content_link(runbook_publish_names)
+
+        # publish runbook to the automation accounts
         for acc in rg_with_afs_storage:
             await Automationaccount.create_runbook_to_automation_account(
                 rg_automationaccount_list=acc,
                 runbook_with_contentlink=runbook_with_contentlink,
             )
-        """rg_with_afs_storage = [
-            {
-                "subscription_id": "b437f37b-b750-489e-bc55-43044286f6e1",
-                "rg_name": "chetan",
-                "resource_name": "chetantest123123",
-                "tenant_name": "CredSAPTenant",
-            },
-            {
-                "subscription_id": "b437f37b-b750-489e-bc55-43044286f6e1",
-                "rg_name": "HEC99-azp-westeurope-1",
-                "resource_name": "azpoedifferentregionwe2",
-                "tenant_name": "CredSAPTenant",
-            },
-            {
-                "subscription_id": "b437f37b-b750-489e-bc55-43044286f6e1",
-                "rg_name": "HEC99-azp-westeurope-1",
-                "resource_name": "azpoedifferentregionwe1",
-                "tenant_name": "CredSAPTenant",
-            },
-        ]"""
     except Exception as e:
         logging.warning(f"Error processing {e}")
     return func.HttpResponse(

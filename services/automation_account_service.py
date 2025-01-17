@@ -1,9 +1,7 @@
-from azure.mgmt.automation.aio.operations import RunbookOperations
-from azure.mgmt.automation.operations import AutomationAccountOperations
 from azure.mgmt.automation.aio import AutomationClient
 from azpoe.services import AuthService
 from utils.automationaccountutils import Automationaccountutils
-import logging, os, json
+import logging, os, json, random
 
 
 class Automationaccount:
@@ -39,9 +37,9 @@ class Automationaccount:
                                     sku={"name": os.getenv("automationaccountsku")},
                                 ),
                             )
-                            if creation_aa_result is not None:
-                                account["automationaccountid"] = creation_aa_result.id
-
+                            account["automationaccountid"] = (
+                                creation_aa_result.id if creation_aa_result else None
+                            )
                             logging.info(
                                 f"Automation Account creation result {creation_aa_result}"
                             )
@@ -93,6 +91,14 @@ class Automationaccount:
                                         log_activity_trace=0,
                                     ),
                                 )
+                                account["published_runbooks"] = {
+                                    "runbookname": runbookname,
+                                    "runbookid": (
+                                        runbook_creation.id
+                                        if runbook_creation
+                                        else None
+                                    ),
+                                }
                                 if runbook_creation is not None:
                                     logging.info(
                                         f"Runbook creation succeeded {runbook_creation}"
@@ -102,3 +108,165 @@ class Automationaccount:
 
         except Exception as e:
             logging.warning(f"Error while creating or updating runbook in aa {e} ")
+
+    @staticmethod
+    async def update_variables_to_automation_account(
+        rg_aa_account_list, variables_names_list
+    ):
+        logging.info(f"Adding variables to automation account {rg_aa_account_list}")
+        try:
+            credential, cloud = AuthService.get_credential(
+                rg_aa_account_list["tenantName"]
+            )
+            async with credential:
+                for account in rg_aa_account_list["data"]:
+                    try:
+                        automation_client = AutomationClient(
+                            credential=credential,
+                            subscription_id=account["subscription_id"],
+                        )
+                        logging.info(f"Created Automation client {automation_client}")
+                        async with automation_client:
+                            variable_addition_list = []
+                            for var in variables_names_list:
+                                logging.info(f"Adding variable {var}")
+                                variable_addition_result = None
+                                if var == "EXCLUDE_AFS":
+                                    variable_addition_result = await automation_client.variable.create_or_update(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        variable_name=var,
+                                        parameters=Automationaccountutils.aaupdate_runbook_variables(
+                                            variable_name=var,
+                                            variable_value=json.dumps(
+                                                "vol-install-xsc"
+                                            ),
+                                            description="runbook_variable",
+                                            is_encrypted=False,
+                                        ),
+                                    )
+                                    variable_addition_list.append(
+                                        {
+                                            f"{variable_addition_result.name}": {
+                                                variable_addition_result.value
+                                            }
+                                        }
+                                    )
+                                    logging.info(
+                                        f"Variable added {var} {variable_addition_result}"
+                                    )
+                                elif var == "OBJECT_STORAGE":
+                                    variable_addition_result = await automation_client.variable.create_or_update(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        variable_name=var,
+                                        parameters=Automationaccountutils.aaupdate_runbook_variables(
+                                            variable_name=var,
+                                            variable_value=json.dumps(
+                                                random.choice(account["resource_name"])
+                                            ),
+                                            description="runbook_variable",
+                                            is_encrypted=False,
+                                        ),
+                                    )
+                                    variable_addition_list.append(
+                                        {
+                                            f"{variable_addition_result.name}": {
+                                                variable_addition_result.value
+                                            }
+                                        }
+                                    )
+                                    logging.info(
+                                        f"Variable added {var} {variable_addition_result}"
+                                    )
+                                elif var == "RESOURCE_GROUP":
+                                    variable_addition_result = await automation_client.variable.create_or_update(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        variable_name=var,
+                                        parameters=Automationaccountutils.aaupdate_runbook_variables(
+                                            variable_name=var,
+                                            variable_value=json.dumps(
+                                                account["rg_name"]
+                                            ),
+                                            description="runbook_variable",
+                                            is_encrypted=False,
+                                        ),
+                                    )
+                                    variable_addition_list.append(
+                                        {
+                                            f"{variable_addition_result.name}": {
+                                                variable_addition_result.value
+                                            }
+                                        }
+                                    )
+                                    logging.info(
+                                        f"Variable added {var} {variable_addition_result}"
+                                    )
+                                elif var == "RetentionDays":
+                                    variable_addition_result = await automation_client.variable.create_or_update(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        variable_name=var,
+                                        parameters=Automationaccountutils.aaupdate_runbook_variables(
+                                            variable_name=var,
+                                            variable_value=json.dumps(
+                                                os.getenv("RetentionDays")
+                                            ),
+                                            description="runbook_variable",
+                                            is_encrypted=False,
+                                        ),
+                                    )
+                                    variable_addition_list.append(
+                                        {
+                                            f"{variable_addition_result.name}": {
+                                                variable_addition_result.value
+                                            }
+                                        }
+                                    )
+                                    logging.info(
+                                        f"Variable added {var} {variable_addition_result}"
+                                    )
+                                elif var == "SUBSCRIPTION_ID":
+                                    variable_addition_result = await automation_client.variable.create_or_update(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        variable_name=var,
+                                        parameters=Automationaccountutils.aaupdate_runbook_variables(
+                                            variable_name=var,
+                                            variable_value=json.dumps(
+                                                account["subscription_id"]
+                                            ),
+                                            description="runbook_variable",
+                                            is_encrypted=False,
+                                        ),
+                                    )
+                                    variable_addition_list.append(
+                                        {
+                                            f"{variable_addition_result.name}": {
+                                                variable_addition_result.value
+                                            }
+                                        }
+                                    )
+                                    logging.info(
+                                        f"Variable added {var} {variable_addition_result}"
+                                    )
+                            account["variableadditionlist"] = variable_addition_list
+                    except Exception as e:
+                        logging.warning(
+                            f"Error with adding of variables for {account} {e}"
+                        )
+                        logging.error(f"Error with adding variables {e}", exc_info=True)
+                        raise
+        except Exception as e:
+            logging.warning(f"Error updating variables to automation account {e}")
