@@ -270,3 +270,55 @@ class Automationaccount:
                         raise
         except Exception as e:
             logging.warning(f"Error updating variables to automation account {e}")
+
+    @staticmethod
+    async def create_automation_account_schedule(
+        automationaccountlist, automation_schedule_list
+    ):
+        try:
+            logging.info(f"Automation account list {automationaccountlist}")
+            credential, cloud = AuthService.get_credential(
+                automationaccountlist["tenantName"]
+            )
+            async with credential:
+                for account in automationaccountlist["data"]:
+                    try:
+                        automation_client = AutomationClient(
+                            credential=credential,
+                            subscription_id=account["subscription_id"],
+                        )
+                        async with automation_client:
+                            for sch in automation_schedule_list:
+                                try:
+                                    create_schedule = None
+                                    create_schedule = await automation_client.schedule.create_or_update(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        schedule_name=os.getenv("schedule_name"),
+                                        parameters=Automationaccountutils.aacreate_or_update_schedule_parameter(
+                                            schedule_name=sch["name"],
+                                            start_time=sch["start_time"],
+                                            expiry_time=sch["expiry_time"],
+                                            frequency=sch["frequency"],
+                                            description=sch["description"],
+                                            interval=sch["interval"],
+                                            time_zone=sch["time_zone"],
+                                            advanced_schedule=sch["advanced_schedule"],
+                                        ),
+                                    )
+                                    if create_schedule is not None:
+                                        logging.info(
+                                            f"Schedule created with {create_schedule}"
+                                        )
+
+                                except Exception as e:
+                                    logging.warning(
+                                        f"Error creating schedule {sch} {e}"
+                                    )
+                    except Exception as e:
+                        logging.warning(f"Error with automation client {account}")
+
+        except Exception as e:
+            logging.warning(f"Error creating a Automation account schedule {e}")

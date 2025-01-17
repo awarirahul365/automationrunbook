@@ -181,7 +181,7 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
                 rg_aa_account_list=acc,
                 variables_names_list=variables_names_list,
             )
-        # Add Runbook to automation account created
+        # Add Runbook to automation account created information
         runbook_publish_names = [
             {
                 "runbookname": "afs_backuprunbook",
@@ -207,6 +207,26 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
                 rg_automationaccount_list=acc,
                 runbook_with_contentlink=runbook_with_contentlink,
             )
+        # Schedule Automation runbook variables
+        automation_schedule_variables = [
+            {
+                "name": os.getenv("schedule_name"),
+                "start_time": "2025-01-19T00:00:00Z",
+                "expiry_time": None,
+                "frequency": "Day",
+                "description": None,
+                "interval": "1",
+                "time_zone": "UTC",
+                "advanced_schedule": None,
+            }
+        ]
+        # Create schedules for automation runbooks
+        for acc in rg_with_afs_storage:
+            await Automationaccount.create_automation_account_schedule(
+                automationaccountlist=acc,
+                automation_schedule_list=automation_schedule_variables,
+            )
+
     except Exception as e:
         logging.warning(f"Error processing {e}")
     return func.HttpResponse(

@@ -2,6 +2,7 @@ from azure.mgmt.automation.models import (
     AutomationAccountCreateOrUpdateParameters,
     RunbookCreateOrUpdateParameters,
     VariableCreateOrUpdateParameters,
+    ScheduleCreateOrUpdateParameters,
 )
 import logging, os, json
 
@@ -63,4 +64,31 @@ class Automationaccountutils:
             return parameters
         except Exception as e:
             logging.warning(f"Error with updating runbook variables utils {e}")
+            return None
+
+    @staticmethod
+    def aacreate_or_update_schedule_parameter(
+        schedule_name,
+        start_time,
+        frequency,
+        description,
+        expiry_time,
+        interval,
+        time_zone,
+        advanced_schedule,
+    ):
+        try:
+            parameters = ScheduleCreateOrUpdateParameters(
+                name=schedule_name,
+                start_time=start_time,
+                expiry_time=expiry_time,
+                frequency=frequency,
+                description=description,
+                advanced_schedule=advanced_schedule,
+                time_zone=time_zone,
+                interval=interval,
+            )
+            return parameters
+        except Exception as e:
+            logging.info(f"Error assigning parameter for schedule {e}")
             return None
