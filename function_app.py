@@ -226,7 +226,22 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
                 automationaccountlist=acc,
                 automation_schedule_list=automation_schedule_variables,
             )
-
+        # Link Runbooks to scheules created
+        link_runbook_relation_list = [
+            {
+                "runbookname": "afs_backuprunbook",
+                "schedulename": os.getenv("schedule_name"),
+            },
+            {
+                "runbookname": "afs_deletionrunbook",
+                "schedulename": os.getenv("schedule_name"),
+            },
+        ]
+        for acc in rg_with_afs_storage:
+            await Automationaccount.link_runbook_to_schedule(
+                automationaccountlist=acc,
+                link_runbook_relation_list=link_runbook_relation_list,
+            )
     except Exception as e:
         logging.warning(f"Error processing {e}")
     return func.HttpResponse(

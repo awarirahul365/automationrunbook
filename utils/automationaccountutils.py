@@ -3,6 +3,9 @@ from azure.mgmt.automation.models import (
     RunbookCreateOrUpdateParameters,
     VariableCreateOrUpdateParameters,
     ScheduleCreateOrUpdateParameters,
+    JobScheduleCreateParameters,
+    ScheduleAssociationProperty,
+    RunbookAssociationProperty,
 )
 import logging, os, json
 
@@ -91,4 +94,18 @@ class Automationaccountutils:
             return parameters
         except Exception as e:
             logging.info(f"Error assigning parameter for schedule {e}")
+            return None
+
+    @staticmethod
+    def aalink_runbook_to_aa(schedule_name, runbook_name, run_on, addparameters):
+        try:
+            parameters = JobScheduleCreateParameters(
+                schedule=ScheduleAssociationProperty(name=schedule_name),
+                runbook=RunbookAssociationProperty(name=runbook_name),
+                run_on=run_on,
+                parameters=addparameters,
+            )
+            return parameters
+        except Exception as e:
+            logging.warning(f"Error creating parameters for Automation account {e}")
             return None

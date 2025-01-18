@@ -1,7 +1,7 @@
 from azure.mgmt.automation.aio import AutomationClient
 from azpoe.services import AuthService
 from utils.automationaccountutils import Automationaccountutils
-import logging, os, json, random
+import logging, os, json, random, uuid
 
 
 class Automationaccount:
@@ -288,6 +288,7 @@ class Automationaccount:
                             subscription_id=account["subscription_id"],
                         )
                         async with automation_client:
+                            schedule_id_list = []
                             for sch in automation_schedule_list:
                                 try:
                                     create_schedule = None
@@ -308,6 +309,12 @@ class Automationaccount:
                                             advanced_schedule=sch["advanced_schedule"],
                                         ),
                                     )
+                                    schedule_id_list.append(
+                                        {
+                                            "schedule_name": create_schedule.name,
+                                            "schedule_id": create_schedule.id,
+                                        }
+                                    )
                                     if create_schedule is not None:
                                         logging.info(
                                             f"Schedule created with {create_schedule}"
@@ -317,8 +324,61 @@ class Automationaccount:
                                     logging.warning(
                                         f"Error creating schedule {sch} {e}"
                                     )
+                            account["schedule_id"] = schedule_id_list
                     except Exception as e:
                         logging.warning(f"Error with automation client {account}")
 
         except Exception as e:
             logging.warning(f"Error creating a Automation account schedule {e}")
+
+    @staticmethod
+    async def link_runbook_to_schedule(
+        automationaccountlist, link_runbook_relation_list
+    ):
+        try:
+            logging.info(
+                f"Automation account currently being used {automationaccountlist}"
+            )
+            credential, cloud = AuthService.get_credential(
+                automationaccountlist["tenantName"]
+            )
+            async with credential:
+                for account in automationaccountlist["data"]:
+                    try:
+                        automation_client = AutomationClient(
+                            credential=credential,
+                            subscription_id=account["subscription_id"],
+                        )
+                        async with automation_client:
+                            for runbook in link_runbook_relation_list:
+                                logging.info(
+                                    f"Processing Current runbook now is {runbook}"
+                                )
+                                runbookname = runbook["runbookname"]
+                                schedulename = runbook["schedulename"]
+                                try:
+                                    link_runbook_result = await automation_client.job_schedule.create(
+                                        resource_group_name=account["rg_name"],
+                                        automation_account_name=account[
+                                            "automationaccountname"
+                                        ],
+                                        job_schedule_id=str(uuid.uuid4()),
+                                        parameters=Automationaccountutils.aalink_runbook_to_aa(
+                                            schedule_name=schedulename,
+                                            runbook_name=runbookname,
+                                            run_on=None,
+                                            addparameters=None,
+                                        ),
+                                    )
+                                    if link_runbook_result is not None:
+                                        logging.info(
+                                            f"Runbook linked to schedule {link_runbook_result}"
+                                        )
+                                except Exception as e:
+                                    logging.warning(f"Error Linking runbook {e}")
+
+                    except Exception as e:
+                        logging.warning(f"Error Linking schedule for runbook {e}")
+
+        except Exception as e:
+            logging.warning(f"Error linking the storage account for {e}")
