@@ -6,9 +6,9 @@ from azure.identity import ClientSecretCredential
 from azure.core.credentials import TokenCredential
 import hashlib
 from services.automation_account_service import Automationaccount
-from azure.mgmt.automation.models import ContentLink, ContentHash
 from services.blob_service import BlobService
 from azure.storage.blob.aio import ContainerClient
+import pandas as pd
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 logger = logging.getLogger("azure")
@@ -211,7 +211,7 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
         automation_schedule_variables = [
             {
                 "name": os.getenv("schedule_name"),
-                "start_time": "2025-01-19T00:00:00Z",
+                "start_time": "2025-01-23T00:00:00Z",
                 "expiry_time": None,
                 "frequency": "Day",
                 "description": None,
@@ -226,7 +226,7 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
                 automationaccountlist=acc,
                 automation_schedule_list=automation_schedule_variables,
             )
-        # Link Runbooks to scheules created
+        # Link Runbooks to schedules created
         link_runbook_relation_list = [
             {
                 "runbookname": "afs_backuprunbook",
@@ -242,6 +242,32 @@ async def http_trigger_automation_account(req: func.HttpRequest) -> func.HttpRes
                 automationaccountlist=acc,
                 link_runbook_relation_list=link_runbook_relation_list,
             )
+        # import python packages for automation account
+        python_package_list = [
+            {
+                "packagename": "azure-identity",
+                "version": "23.2.0",
+                "packageuri": "https://files.pythonhosted.org/packages/05/ed/85b5e33b2d5ee8ae12228a77f74a484cd6bf58d3288d8524498a02cf0c8c/azure_mgmt_resource-23.2.0-py3-none-any.whl",
+            }
+        ]
+        for acc in rg_with_afs_storage:
+            await Automationaccount.install_python_package(
+                automationaccountlist=acc,
+                python_package_list=python_package_list,
+            )
+        # Report the accounts created
+        with pd.ExcelWriter("automationoutput.xlsx", engine="openpyxl") as writer:
+            for element in rg_with_afs_storage:
+                tenantname = element["tenantName"]
+                data = element["data"]
+                if data:
+                    df = pd.json_normalize(data)
+                    df.to_excel(writer, sheet_name=tenantname[:31], index=False)
+                else:
+                    pd.DataFrame().to_excel(
+                        writer, sheet_name=tenantname[:31], index=False
+                    )
+
     except Exception as e:
         logging.warning(f"Error processing {e}")
     return func.HttpResponse(

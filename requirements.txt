@@ -4,7 +4,9 @@
 
 aiohttp
 azure-functions
-azure-mgmt-automation
+azure-mgmt-automation==1.1.0b4
 azure-identity
 azure-mgmt-resource
-git+https://github.tools.sap/hec-azure/azpoe-common.git#egg=azpoe-common
+git+https://github.tools.sap/eng/azpoe-common.git#egg=azpoe_common
+pandas
+openpyxl

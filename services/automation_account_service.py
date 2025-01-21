@@ -1,5 +1,6 @@
 from azure.mgmt.automation.aio import AutomationClient
 from azpoe.services import AuthService
+from azure.mgmt.automation.operations import Python3PackageOperations
 from utils.automationaccountutils import Automationaccountutils
 import logging, os, json, random, uuid
 
@@ -350,6 +351,7 @@ class Automationaccount:
                             subscription_id=account["subscription_id"],
                         )
                         async with automation_client:
+                            link_runbook_status_list = []
                             for runbook in link_runbook_relation_list:
                                 logging.info(
                                     f"Processing Current runbook now is {runbook}"
@@ -370,15 +372,64 @@ class Automationaccount:
                                             addparameters=None,
                                         ),
                                     )
+                                    link_runbook_status_list.append(
+                                        {
+                                            "runbookname": runbookname,
+                                            "schedulename": schedulename,
+                                            "scheduleid": link_runbook_result.job_schedule_id,
+                                        }
+                                    )
                                     if link_runbook_result is not None:
                                         logging.info(
-                                            f"Runbook linked to schedule {link_runbook_result}"
+                                            f"Runbook linked to schedule {link_runbook_result.job_schedule_id}"
                                         )
                                 except Exception as e:
                                     logging.warning(f"Error Linking runbook {e}")
-
+                            account["linkingrunbook"] = link_runbook_status_list
                     except Exception as e:
                         logging.warning(f"Error Linking schedule for runbook {e}")
 
         except Exception as e:
             logging.warning(f"Error linking the storage account for {e}")
+
+    @staticmethod
+    async def install_python_package(automationaccountlist, python_package_list):
+        try:
+            credential, cloud = AuthService.get_credential(
+                automationaccountlist["tenantName"]
+            )
+            async with credential:
+                for account in automationaccountlist["data"]:
+                    try:
+                        automation_client = AutomationClient(
+                            credential=credential,
+                            subscription_id=account["subscription_id"],
+                        )
+                        async with automation_client:
+                            for package in python_package_list:
+                                add_python_package = await automation_client.python3_package.create_or_update(
+                                    resource_group_name=account["rg_name"],
+                                    automation_account_name=account[
+                                        "automationaccountname"
+                                    ],
+                                    package_name=package["packagename"],
+                                    parameters={
+                                        "properties": {
+                                            "contentLink": {
+                                                "contentHash": {
+                                                    "algorithm": "sha256",
+                                                    "value": "7af2bca928ecd58e57ea7f7731d245f45e9d927036d82f1d30b96baa0c26b569",
+                                                },
+                                                "uri": package["packageuri"],
+                                                "version": package["version"],
+                                            }
+                                        },
+                                        "tags": {},
+                                    },
+                                )
+                                logging.info(f"Add Python package {add_python_package}")
+                    except Exception as e:
+                        logging.warning(f"Error adding python package {e}")
+
+        except Exception as e:
+            logging.warning(f"Error with python additon {e}")
